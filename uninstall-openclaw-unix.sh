@@ -60,7 +60,9 @@ contains_item() {
 add_unique() {
   local array_name="$1"
   local value="$2"
+  set +u
   eval "local existing=(\"\${${array_name}[@]}\")"
+  set -u
   contains_item "$value" "${existing[@]}" && return 0
   eval "${array_name}+=(\"\$value\")"
 }
@@ -225,6 +227,7 @@ print_section() {
 }
 
 print_summary() {
+  set +u
   step "1/6" "扫描当前环境并展示待卸载内容"
   print_section "[commands]" "${CMD_PATHS[@]}"
   print_section "[processes]" "${PROCESS_LIST[@]}"
@@ -233,6 +236,7 @@ print_summary() {
   print_section "[files]" "${FILE_LIST[@]}"
   print_section "[path hints]" "${PATH_HINTS[@]}"
   print_section "[shell config hints]" "${SHELL_HINTS[@]}"
+  set -u
 }
 
 confirm_uninstall() {
@@ -256,7 +260,9 @@ confirm_uninstall() {
 }
 
 print_path_guidance() {
+  set +u
   if [ "${#PATH_HINTS[@]}" -eq 0 ] && [ "${#SHELL_HINTS[@]}" -eq 0 ]; then
+    set -u
     return
   fi
 
@@ -278,6 +284,7 @@ print_path_guidance() {
   fi
 
   info "修改后请重新打开 Terminal，或执行 'exec $SHELL' 让配置生效。"
+  set -u
 }
 
 step "0/6" "流程说明"
@@ -290,12 +297,15 @@ info "6) 如果 PATH 或 shell 配置还有残留，告诉你去哪里删除"
 [ "$DRY_RUN" -eq 1 ] && info "当前为预览模式，不会真正修改系统"
 
 scan_all
+set +u
 if [ "${#CMD_PATHS[@]}" -eq 0 ] && [ "${#PROCESS_LIST[@]}" -eq 0 ] && [ "${#SERVICE_LIST[@]}" -eq 0 ] && [ "${#PACKAGE_LIST[@]}" -eq 0 ] && [ "${#FILE_LIST[@]}" -eq 0 ]; then
   step "1/6" "扫描当前环境并展示待卸载内容"
   info "未检测到 openclaw，已跳过卸载。"
+  set -u
   print_path_guidance
   exit 0
 fi
+set -u
 
 print_summary
 confirm_uninstall
@@ -304,12 +314,14 @@ step "2/6" "优先尝试官方卸载命令"
 if cmd_exists "$TARGET"; then
   run_cmd "$TARGET" uninstall --all --yes
   scan_all
+  set +u
   if [ "${#CMD_PATHS[@]}" -eq 0 ] && [ "${#PROCESS_LIST[@]}" -eq 0 ] && [ "${#SERVICE_LIST[@]}" -eq 0 ]; then
     OFFICIAL_OK=1
     info "official uninstall completed successfully"
   else
     warn "official uninstall finished but traces still remain"
   fi
+  set -u
 else
   info "official cli not found, skip direct uninstall"
 fi
@@ -365,6 +377,7 @@ done
 
 step "5/6" "最终验证"
 scan_all
+set +u
 print_section "[remaining commands]" "${CMD_PATHS[@]}"
 print_section "[remaining processes]" "${PROCESS_LIST[@]}"
 print_section "[remaining services]" "${SERVICE_LIST[@]}"
@@ -374,6 +387,7 @@ print_section "[remaining files]" "${FILE_LIST[@]}"
 if [ "${#CMD_PATHS[@]}" -gt 0 ] || [ "${#PROCESS_LIST[@]}" -gt 0 ] || [ "${#SERVICE_LIST[@]}" -gt 0 ] || [ "${#PACKAGE_LIST[@]}" -gt 0 ] || [ "${#FILE_LIST[@]}" -gt 0 ]; then
   warn "仍检测到部分残留，请参考上面的列表继续手动处理。"
 fi
+set -u
 
 print_path_guidance
 echo "卸载流程执行完成。"
